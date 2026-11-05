@@ -3,12 +3,15 @@ using UnityEngine;
 using UnityEngine.UI;
 using RacingProject.Career;
 using RacingProject.SaveSystem;
+using NUnit.Framework;
 
 public class CareerUIController : MonoBehaviour
 {
     [Header("Panels")]
     [SerializeField] private GameObject MainMenuPanel;
     [SerializeField] private GameObject CareerHubPanel;
+    [SerializeField] private GameObject RacePreparationPanel;
+    [SerializeField] private GameObject RacePanel;
 
     [Header("MainMenu")]
     [SerializeField] private Button ContinueCareerButton;
@@ -21,6 +24,9 @@ public class CareerUIController : MonoBehaviour
     [SerializeField] private TMP_Text DriverStatsText;
     [SerializeField] private TMP_Text CarNameText;
     [SerializeField] private TMP_Text CarStatsText;
+
+    [Header("Controllers")]
+    [SerializeField] private RacePreparationController racePreparationController;
 
     private CareerManager CareerManager;
 
@@ -42,6 +48,18 @@ public class CareerUIController : MonoBehaviour
         {
             CareerHubPanel.SetActive(false);
         }
+
+        if(RacePreparationPanel != null)
+        {
+            RacePreparationPanel.SetActive(false);
+        }
+
+        if(RacePanel != null)
+        {
+            RacePanel.SetActive(false);
+        }
+
+        racePreparationController.Initialize(CareerManager);
     }
 
     public void StartNewCareer()
@@ -129,5 +147,10 @@ public class CareerUIController : MonoBehaviour
     {
         Debug.Log("Stopping game");
         Application.Quit();
+    }
+
+    public void RacePreparation()
+    {
+        racePreparationController.ShowRacePreparation();
     }
 }

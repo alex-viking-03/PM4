@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Serialization;
 using RacingProject.Domain;
 
 namespace RacingProject.Simulation
@@ -20,6 +21,14 @@ namespace RacingProject.Simulation
         public bool IsStarted {get; private set;}
 
         public int TotalLaps => Track.Laps;
+
+        public RaceEvent PendingEvent { get; private set; }
+        public bool IsWaitingForPlayerDecision => PendingEvent != null;
+
+        private bool isLapProcessing = false;
+        private int overtakingProcessIndex;
+
+        private List<(Team Attacker, Team Defender)> overtakingPairs = new();
 
         public Race(
             List<Team> teams,
@@ -103,7 +112,17 @@ namespace RacingProject.Simulation
 
         public bool RunNextLap()
         {
+            if (IsWaitingForPlayerDecision)
+            {
+                throw new InvalidOperationException("Resolve the pending race event first");
+            }
+
             EnsureRaceStarted();
+
+            if (isLapProcessing)
+            {
+                throw new InvalidOperationException("The current lap is still in process");
+            }
 
             if (CurrentLap >= Track.Laps)
             {
@@ -162,27 +181,44 @@ namespace RacingProject.Simulation
                 AttemptMistake(team);
             }
 
-            ProcessOvertaking();
-
-            if (CurrentLap == Track.Laps)
-            {
-                foreach (Team team in Teams)
-                {
-                    team.Car.Wear((int)CalculateWear());
-                }
-
-                return true;
-            }
+            StartProcessOvertaking();
 
             return true;
         }
 
+        private void StartProcessOvertaking()
+        {
+            overtakingPairs.Clear();
+
+            for(int i = 1; i < Positions.Count; i++)
+            {
+                overtakingPairs.Add((Positions[i], Positions[i - 1]));
+
+            }
+
+            overtakingProcessIndex = 0;
+            isLapProcessing = true;
+
+            ProcessOvertaking();
+        }
+
         private void ProcessOvertaking()
         {
-            for (int i = 1; i < Positions.Count(); i++)
+            while(overtakingProcessIndex < overtakingPairs.Count)
             {
-                Team attacker = Positions[i];
-                Team defender = Positions[i-1];
+                var pair = overtakingPairs[overtakingProcessIndex];
+                overtakingProcessIndex++;
+
+                Team attacker = pair.Attacker;
+                Team defender = pair.Defender;
+
+                int attackerIndex = Positions.IndexOf(attacker);
+                int defenderIndex = Positions.IndexOf(defender);
+
+                if (attackerIndex != defenderIndex + 1)
+                {
+                    continue;
+                }
 
                 double attackerLapTime = CalculateTime(attacker.Car) * attacker.Strategy.TimeMultiplier;
                 double defenderLapTime = CalculateTime(defender.Car) * defender.Strategy.TimeMultiplier;
@@ -192,8 +228,36 @@ namespace RacingProject.Simulation
                     continue;
                 }
 
+                if (attacker.IsPlayerControlled)
+                {
+                    SetPendingEvent(new RaceEvent(
+                        RaceEventType.OvertakingOpportunity,
+                        attacker,
+                        defender,
+                        $"Вы можете попробовать обогнать команду {defender.Name}!"));
+
+                    return;
+                }
+
                 TryOvertake(attacker, defender);
             }
+
+            CompleteLap();
+        }
+
+        private void CompleteLap()
+        {
+            if(CurrentLap == Track.Laps)
+            {
+                foreach(Team team in Teams)
+                {
+                    team.Car.Wear((int)CalculateWear());
+                }
+            }
+
+            isLapProcessing = false;
+            overtakingPairs.Clear();
+            overtakingProcessIndex = 0;
         }
 
         public List<RaceResultEntry> FinishRace()
@@ -233,6 +297,7 @@ namespace RacingProject.Simulation
                 };
 
                 entry.Team.Driver.GainExperience(experience);
+                entry.Result.Experience = experience;
             }
 
             foreach(RaceResultEntry entry in sortedResults)
@@ -444,12 +509,63 @@ namespace RacingProject.Simulation
         {
             return CalculateTime(team.Car) * team.Strategy.TimeMultiplier;
         }
+
+        private void SetPendingEvent(RaceEvent raceEvent)
+        {
+            if(raceEvent == null)
+            {
+                throw new ArgumentNullException(nameof(raceEvent));
+            }
+
+            if (IsWaitingForPlayerDecision)
+            {
+                throw new InvalidOperationException("another race event is already waiting for a decision");
+            }
+
+            PendingEvent = raceEvent;
+        }
+
+        public bool ResolvePlayerDecision(OvertakingDecision decision)
+        {
+            if (!IsWaitingForPlayerDecision)
+            {
+                throw new InvalidOperationException("There is no pending race event");
+            }
+
+            if(PendingEvent.Type != RaceEventType.OvertakingOpportunity)
+            {
+                throw new InvalidOperationException("This decision cannot be applied to the current event");
+            }
+
+            bool overtakingSuccessful = false;
+
+            switch (decision)
+            {
+                case OvertakingDecision.ATTACK:
+                    overtakingSuccessful = TryOvertake(PendingEvent.Attacker, PendingEvent.Defender);
+                    break;
+
+                case OvertakingDecision.HOLD_POSITION:
+                case OvertakingDecision.CONSERVES:
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(decision));
+            }
+
+            PendingEvent = null;
+
+            ProcessOvertaking();
+
+            return overtakingSuccessful;
+        }
     }
 
     public class RaceResult
     {
         public double Time {get; set;}
         public double Prize {get; set;}
+        public int Experience { get; set; }
     }
 
     public class RaceResultEntry

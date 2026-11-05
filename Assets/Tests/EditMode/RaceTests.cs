@@ -511,4 +511,135 @@ public class RaceTests
             race.GetPositions()
         );
     }
+
+    [Test]
+    public void RunNextLap_WhenPlayerCanOvertake_CreatesPendingEvent()
+    {
+        Car defenderCar = new Car("Defender car", 40, 40, new Hard());
+        Car attackerCar = new Car("Attacker car", 100, 100, new Hard());
+
+        Team defender = new Team(
+            "Defender",
+            defenderCar,
+            10000,
+            Strategy.NORMAL,
+            new Driver("Defender", 30, 20)
+        );
+
+        Team player = new Team(
+            "Player",
+            attackerCar,
+            10000,
+            Strategy.ATTACK,
+            new Driver("Player", 100, 100),
+            isPlayerControlled: true
+        );
+
+        Race race = new Race(
+            new List<Team> { defender, player }, 
+            new Track("Test track", 4.5, 10, 3),
+            new List<double> { 1500, 1000 },
+            new NoMistakeRandom()
+        );
+
+        race.StartRun();
+        race.RunNextLap();
+
+        Assert.IsTrue(race.IsWaitingForPlayerDecision);
+        Assert.IsNotNull(race.PendingEvent);
+
+        Assert.AreEqual(RaceEventType.OvertakingOpportunity,
+            race.PendingEvent.Type);
+
+        Assert.AreSame(player, race.PendingEvent.Attacker);
+        Assert.AreSame(defender, race.PendingEvent.Defender);
+    }
+
+    [Test]
+    public void ResolvePlayerDecision_WithConserve_SkipsOvertaking()
+    {
+        Car defenderCar = new Car("Defender car", 40, 40, new Hard());
+        Car attackerCar = new Car("Attacker car", 100, 100, new Hard());
+
+        Team defender = new Team(
+            "Defender",
+            defenderCar,
+            10000,
+            Strategy.NORMAL,
+            new Driver("Defender", 30, 20)
+        );
+
+        Team player = new Team(
+            "Player",
+            attackerCar,
+            10000,
+            Strategy.ATTACK,
+            new Driver("Player", 100, 100),
+            isPlayerControlled: true
+        );
+
+        Race race = new Race(
+            new List<Team> { defender, player },
+            new Track("Test track", 4.5, 10, 3),
+            new List<double> { 1500, 1000 },
+            new NoMistakeRandom()
+        );
+
+        race.StartRun();
+        race.RunNextLap();
+
+        bool overtook = race.ResolvePlayerDecision(OvertakingDecision.CONSERVES);
+
+        Assert.IsFalse(overtook);
+        Assert.IsFalse(race.IsWaitingForPlayerDecision);
+        Assert.IsNull(race.PendingEvent);
+
+        CollectionAssert.AreEqual(
+            new[] { defender, player },
+            race.GetPositions()
+        );
+
+        Assert.AreEqual(1, race.CurrentLap);
+    }
+
+    [Test]
+    public void RunNextLap_WhenWaitingForPlayerDecision_ThrowsException()
+    {
+        Car defenderCar = new Car("Defender Car", 40, 40, new Hard());
+        Car attackerCar = new Car("Attacker Car", 100, 100, new Hard());
+
+        Team defender = new Team(
+            "Defender",
+            defenderCar,
+            10000,
+            Strategy.NORMAL,
+            new Driver("Defender Driver", 30, 20)
+        );
+
+        Team player = new Team(
+            "Player",
+            attackerCar,
+            10000,
+            Strategy.ATTACK,
+            new Driver("Player Driver", 100, 100),
+            isPlayerControlled: true
+        );
+
+        Race race = new Race(
+            new List<Team> { defender, player },
+            new Track("Test Track", 4.5, 10, 3),
+            new List<double> { 1500, 1000 },
+            new NoMistakeRandom()
+        );
+
+        race.StartRun();
+        race.RunNextLap();
+
+        Assert.Throws<System.InvalidOperationException>(
+            () => race.RunNextLap()
+        );
+
+        Assert.AreEqual(1, race.CurrentLap);
+        Assert.IsTrue(race.IsWaitingForPlayerDecision);
+    }
 }
