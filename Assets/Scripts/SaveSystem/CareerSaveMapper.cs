@@ -37,12 +37,6 @@ namespace RacingProject.SaveSystem
                     $"Team '{team.Name}' has no strategy.");
             }
 
-            if (team.Defence == null)
-            {
-                throw new InvalidOperationException(
-                    $"Team '{team.Name}' has no defence.");
-            }
-
             return new CareerSaveData
             {
                 SaveVersion = 1,
@@ -51,7 +45,6 @@ namespace RacingProject.SaveSystem
 
                 IsPlayerControlled = team.IsPlayerControlled,
                 StrategyName = GetStrategyName(team.Strategy),
-                DefenceName = GetDefenceName(team.Defence),
 
                 Car = new CarSaveData
                 {
@@ -120,7 +113,6 @@ namespace RacingProject.SaveSystem
                 data.Budget,
                 GetStrategy(data.StrategyName),
                 driver,
-                GetDefence(data.DefenceName),
                 data.IsPlayerControlled
             );
         }
@@ -191,7 +183,6 @@ namespace RacingProject.SaveSystem
                 throw new ArgumentException("Driver experience exceeds the current level threshold.");
 
             _ = GetStrategy(data.StrategyName);
-            _ = GetDefence(data.DefenceName);
 
             if (data.Car.TireName != "Soft" &&
                 data.Car.TireName != "Medium" &&
@@ -253,26 +244,6 @@ namespace RacingProject.SaveSystem
                 _ => throw new ArgumentException(
                     $"Unknown strategy: {name}")
             };
-        }
-
-        private static string GetDefenceName(Defence defence)
-        {
-            if (defence == null)
-                throw new ArgumentNullException(nameof(defence));
-
-            if (defence.DefenceBonus == 0 &&
-                defence.MistakeRisk == 0)
-                return "NORMAL";
-
-            if (defence.DefenceBonus == 10 &&
-                defence.MistakeRisk == 0.15)
-                return "AGGRESSIVE";
-
-            if (defence.DefenceBonus == -10 &&
-                defence.MistakeRisk == 0)
-                return "YIELD";
-
-            throw new ArgumentException("Unknown defence type.");
         }
 
         private static Defence GetDefence(string name)

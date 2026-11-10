@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml.Serialization;
 using RacingProject.Domain;
+using UnityEngine;
 
 namespace RacingProject.Simulation
 {
@@ -11,11 +11,14 @@ namespace RacingProject.Simulation
         private readonly List<Team> Teams;
         private readonly Track Track;
         private readonly List<double> Prizes;
-        private readonly Random Random;
+        private readonly System.Random Random;
 
+        private readonly List<double> StartingDistances;
         private readonly Dictionary<Team, RaceResult> Results = new();
+        private readonly Dictionary<Team, TeamRaceProgress> TeamProgress = new();
         private readonly List<Team> Positions = new();
         private readonly RaceAI AI = new RaceAI();
+        private readonly HashSet<Team> notifiedOpponents= new();
 
         public int CurrentLap {get; private set;}
         public bool IsStarted {get; private set;}
@@ -23,18 +26,13 @@ namespace RacingProject.Simulation
         public int TotalLaps => Track.Laps;
 
         public RaceEvent PendingEvent { get; private set; }
-        public bool IsWaitingForPlayerDecision => PendingEvent != null;
-
-        private bool isLapProcessing = false;
-        private int overtakingProcessIndex;
-
-        private List<(Team Attacker, Team Defender)> overtakingPairs = new();
 
         public Race(
             List<Team> teams,
             Track track,
             List<double> prizes,
-            Random random = null
+            System.Random random = null,
+            List<double> startingDistances = null
         )
         {
             if (teams == null || teams.Count == 0)
@@ -68,7 +66,26 @@ namespace RacingProject.Simulation
             Teams = new List<Team>(teams);
             Track = track;
             Prizes = new List<double>(prizes);
-            Random = random ?? new Random();
+            Random = random ?? new System.Random();
+
+            if(startingDistances != null && startingDistances.Count != Teams.Count)
+            {
+                throw new ArgumentException("Starting distances count must match teams count",
+                    nameof(startingDistances));
+            }
+
+            StartingDistances = startingDistances != null
+                ? new List<double>(startingDistances) : new List<double>(new double[teams.Count]);
+
+            double totalDistance = track.GetTotalDistance();
+
+            foreach(double distance in StartingDistances)
+            {
+                if(distance < 0 || distance > totalDistance)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(startingDistances));
+                }
+            }
         }
 
         public double CalculateTime(Car car)
@@ -81,15 +98,50 @@ namespace RacingProject.Simulation
             return baseTime * difficultyCoefficient * conditionCoefficient * tireCoefficient;
         }
 
+        public double CalculateDistance(Team team, double elapsedTime)
+        {
+            if (team == null)
+            {
+                throw new ArgumentNullException(nameof(team));
+            }
+
+            if (elapsedTime <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(elapsedTime));
+            }
+
+            double laptime = CalculateTime(team.Car) * team.Strategy.TimeMultiplier;
+
+            if(laptime <= 0)
+            {
+                throw new InvalidOperationException("Lap time must be positive");
+            }
+
+            return Track.Length / laptime * elapsedTime;
+        }
+
         public void StartRun()
         {
             Results.Clear();
             Positions.Clear();
+            TeamProgress.Clear();
+            notifiedOpponents.Clear();
+            PendingEvent = null;
 
-            foreach (Team team in Teams)
+            for (int i = 0; i < Teams.Count; i++)
             {
+                Team team = Teams[i];
+
                 Results.Add(team, new RaceResult());
                 Positions.Add(team);
+
+                TeamProgress.Add(
+                    team,
+                    new TeamRaceProgress(
+                        Track.Length,
+                        Track.Laps,
+                        StartingDistances[i])
+                );
             }
 
             CurrentLap = 0;
@@ -100,36 +152,52 @@ namespace RacingProject.Simulation
         {
             EnsureRaceStarted();
 
-            if (!Results.TryGetValue(team, out RaceResult result))
+            if (team == null)
             {
-                throw new ArgumentException("Team does not participate in this race", nameof(team));
+                throw new ArgumentNullException(nameof(team));
             }
 
-            result.Time += CalculateTime(team.Car) * team.Strategy.TimeMultiplier;
+            if (!Results.ContainsKey(team))
+            {
+                throw new ArgumentException("Team doesn't participate in this race.", nameof(team));
+            }
 
-            team.Car.Tire.Wear(team.Strategy.WearMultiplier);
+            double lapTime = GetLapTime(team);
+
+            AdvanceTeam(team, lapTime);
+        }
+
+        private void AdvanceTeam(Team team, double elapsedTime)
+        {
+            TeamRaceProgress progress = TeamProgress[team];
+
+            if(progress.IsFinished)
+            {
+                return;
+            }
+
+            double distance = CalculateDistance(team, elapsedTime);
+            double previousDistance = progress.DistanceCovered;
+
+            progress.Advance(distance, elapsedTime);
+
+            double actualDistance = progress.DistanceCovered - previousDistance;
+            double actualTime = elapsedTime * (actualDistance / distance);
+
+            Results[team].Time += actualTime;
+            team.Car.Tire.WearForDistance(distance, Track.Length, team.Strategy.WearMultiplier);
         }
 
         public bool RunNextLap()
         {
-            if (IsWaitingForPlayerDecision)
-            {
-                throw new InvalidOperationException("Resolve the pending race event first");
-            }
-
             EnsureRaceStarted();
 
-            if (isLapProcessing)
-            {
-                throw new InvalidOperationException("The current lap is still in process");
-            }
-
-            if (CurrentLap >= Track.Laps)
+            if (Teams.All(team => TeamProgress[team].IsFinished))
             {
                 return false;
             }
 
-            CurrentLap++;
+            CurrentLap = Math.Min(CurrentLap + 1, Track.Laps);
 
             Dictionary<Team, Strategy> selectedStrategies = new();
             Dictionary<Team, Defence> selectedDefences = new();
@@ -138,13 +206,16 @@ namespace RacingProject.Simulation
 
             foreach (Team team in Teams)
             {
+                if (TeamProgress[team].IsFinished)
+                {
+                    continue;
+                }
+
                 if(team.IsPlayerControlled)
                 {
                     selectedStrategies.Add(team, team.Strategy);
-                    selectedDefences.Add(team, team.Defence);
                     continue;
                 }
-                Defence defence = AI.ChooseDefence(team);
 
                 int teamIndex = Positions.IndexOf(team);
                 int position = teamIndex + 1;
@@ -168,96 +239,79 @@ namespace RacingProject.Simulation
                     opponentLapTime
                 );
 
-                selectedDefences.Add(team, defence);
                 selectedStrategies.Add(team, strategy);
             }
 
             foreach(Team team in Teams)
             {
-                team.SetDefence(selectedDefences[team]);
-                team.SetStrategy(selectedStrategies[team]);
+                if (TeamProgress[team].IsFinished)
+                {
+                    continue;
+                }
 
-                RunLap(team);
+                team.SetStrategy(selectedStrategies[team]);
+            }
+
+            foreach (Team team in Teams)
+            {
+                if (TeamProgress[team].IsFinished)
+                    continue;
+
+                double lapTime = GetLapTime(team);
+
+                AdvanceTeam(team, lapTime);
                 AttemptMistake(team);
             }
 
-            StartProcessOvertaking();
+            UpdatePosition();
+
+            CheckPlayerProximity();
 
             return true;
         }
 
-        private void StartProcessOvertaking()
+        public void AdvanceSimulationStep(double elapsedTime) 
         {
-            overtakingPairs.Clear();
+            EnsureRaceStarted();
 
-            for(int i = 1; i < Positions.Count; i++)
+            if(elapsedTime <= 0)
             {
-                overtakingPairs.Add((Positions[i], Positions[i - 1]));
-
+                throw new ArgumentOutOfRangeException(nameof(elapsedTime));
             }
 
-            overtakingProcessIndex = 0;
-            isLapProcessing = true;
+            const double timeStep = 0.1;
 
-            ProcessOvertaking();
-        }
+            double remainingTime = elapsedTime;
 
-        private void ProcessOvertaking()
-        {
-            while(overtakingProcessIndex < overtakingPairs.Count)
+            while(remainingTime > 0)
             {
-                var pair = overtakingPairs[overtakingProcessIndex];
-                overtakingProcessIndex++;
+                double currentStep = Math.Min(timeStep, remainingTime);
 
-                Team attacker = pair.Attacker;
-                Team defender = pair.Defender;
+                Dictionary<Team, double> previousDistance = new();
 
-                int attackerIndex = Positions.IndexOf(attacker);
-                int defenderIndex = Positions.IndexOf(defender);
-
-                if (attackerIndex != defenderIndex + 1)
+                foreach (Team team in Teams)
                 {
-                    continue;
+                    previousDistance[team] = TeamProgress[team].DistanceCovered;
+
+                    TeamRaceProgress progress = TeamProgress[team];
+
+                    if (progress.IsFinished)
+                    {
+                        continue;
+                    }
+
+                    double distance = CalculateDistance(team, currentStep);
+                    progress.Advance(distance, currentStep);
+
+                    double actualDistance = progress.DistanceCovered - previousDistance[team];
+                    double actualTime = currentStep * (actualDistance / distance);
+
+                    Results[team].Time += actualTime;
                 }
 
-                double attackerLapTime = CalculateTime(attacker.Car) * attacker.Strategy.TimeMultiplier;
-                double defenderLapTime = CalculateTime(defender.Car) * defender.Strategy.TimeMultiplier;
-
-                if (attackerLapTime >= defenderLapTime)
-                {
-                    continue;
-                }
-
-                if (attacker.IsPlayerControlled)
-                {
-                    SetPendingEvent(new RaceEvent(
-                        RaceEventType.OvertakingOpportunity,
-                        attacker,
-                        defender,
-                        $"Вы можете попробовать обогнать команду {defender.Name}!"));
-
-                    return;
-                }
-
-                TryOvertake(attacker, defender);
+                remainingTime -= currentStep;
             }
-
-            CompleteLap();
-        }
-
-        private void CompleteLap()
-        {
-            if(CurrentLap == Track.Laps)
-            {
-                foreach(Team team in Teams)
-                {
-                    team.Car.Wear((int)CalculateWear());
-                }
-            }
-
-            isLapProcessing = false;
-            overtakingPairs.Clear();
-            overtakingProcessIndex = 0;
+            UpdatePosition();
         }
 
         public List<RaceResultEntry> FinishRace()
@@ -266,7 +320,7 @@ namespace RacingProject.Simulation
 
             if (CurrentLap < Track.Laps)
             {
-                throw new InvalidOperationException("The race has now finished yet");
+                throw new InvalidOperationException("The race has not finished yet");
             }
 
             List<RaceResultEntry> sortedResults = Results
@@ -319,11 +373,18 @@ namespace RacingProject.Simulation
                 throw new ArgumentException("Team does not participate in this race", nameof(team));
             }
 
+            if (TeamProgress[team].IsFinished)
+            {
+                throw new InvalidOperationException("Finished teams cannot perform pit stops");
+            }
+
             team.Car.ChangeTire(newTire);
 
             const double pitStopTime = 20;
 
             result.Time += pitStopTime;
+
+            UpdatePosition();
 
             return pitStopTime;
         }
@@ -331,42 +392,6 @@ namespace RacingProject.Simulation
         public double CalculateWear()
         {
             return Track.GetTotalDistance() * 0.05 * (1 + Track.Difficulty / 10);
-        }
-
-        public double CalculateOvertakingChance(
-            Team attacker,
-            Team defender
-        )
-        {
-            if (attacker == null || defender == null)
-            {
-                throw new ArgumentNullException("Both teams are required");
-            }
-
-            double attackScore = attacker.Car.Speed * 0.4 +
-                                 attacker.Car.Handling * 0.3 +
-                                 attacker.Driver.Skill * 0.2 +
-                                 attacker.Driver.Aggressiveness * 0.1;
-
-            double defenceScores = defender.Car.Speed * 0.4 +
-                                 defender.Car.Handling * 0.3 +
-                                 defender.Driver.Skill * 0.2 +
-                                 defender.Defence.DefenceBonus;
-
-            attackScore *= attacker.Strategy.AttackMultiplier;
-
-            double difference = attackScore - defenceScores;
-
-            double chance = (difference + 15) / 30.0;
-
-            return Math.Max(0, Math.Min(1, chance));
-        }
-
-        public string AttemptOvertaking(Team attackingTeam, Team defendingTeam)
-        {
-            double chance = CalculateOvertakingChance(attackingTeam, defendingTeam);
-
-            return Random.NextDouble() < chance ? "success" : "failed";
         }
 
         public double CalculateMistakeChance(Team team)
@@ -389,8 +414,6 @@ namespace RacingProject.Simulation
             {
                 mistakeChance *= 0.6;
             }
-
-            mistakeChance *= 1 + team.Defence.MistakeRisk;
 
             return Math.Max(0, Math.Min(0.75, mistakeChance));
         }
@@ -433,46 +456,17 @@ namespace RacingProject.Simulation
 
             return new List<Team>(Positions);
         }
+
         
-        public bool TryOvertake(Team attacker, Team defender)
+        private void UpdatePosition()
         {
-            EnsureRaceStarted();
-
-            if (attacker == null)
+            Positions.Sort((teamA, teamB) =>
             {
-                throw new ArgumentNullException(nameof(attacker));
-            }
+                double timeA = Results[teamA].Time;
+                double timeB = Results[teamB].Time;
 
-            if (defender == null)
-            {
-                throw new ArgumentNullException(nameof(defender));
-            }
-
-            int attackerPosition = Positions.IndexOf(attacker);
-            int defenderPosition = Positions.IndexOf(defender);
-
-            if (attackerPosition < 0 || defenderPosition < 0)
-            {
-                throw new ArgumentException("Both teams  must participate in this race.");
-            }
-
-            if (attackerPosition != defenderPosition + 1)
-            {
-                return false;
-            }
-
-            string result = AttemptOvertaking(attacker, defender);
-
-            if (result != "success")
-            {
-                return false;
-            }
-
-            
-            (Positions[attackerPosition], Positions[defenderPosition]) =
-                (Positions[defenderPosition], Positions[attackerPosition]);
-
-            return true;
+                return timeA.CompareTo(timeB);
+            });
         }
 
         public void EnsureRaceStarted()
@@ -483,7 +477,17 @@ namespace RacingProject.Simulation
             }
         }
 
-        private double GetGapToAhead(Team team)
+        public TeamRaceProgress GetTeamProgress(Team team)
+        {
+            if(!TeamProgress.TryGetValue(team, out TeamRaceProgress progress))
+            {
+                throw new ArgumentException("Team does not participate in race", nameof(team));
+            }
+
+            return progress;
+        }
+
+        public double GetGapToAhead(Team team)
         {
             int position = Positions.IndexOf(team);
 
@@ -499,10 +503,38 @@ namespace RacingProject.Simulation
 
             Team ahead = Positions[position - 1];
 
-            double teamTime = Results[team].Time;
-            double aheadTime = Results[ahead].Time;
+            return Results[team].Time - Results[ahead].Time;
+        }
 
-            return Math.Max(0, teamTime - aheadTime);
+        private void CheckPlayerProximity()
+        {
+            Team playerTeam = Teams.FirstOrDefault(team => team.IsPlayerControlled);
+
+            if (playerTeam == null)
+            {
+                return;
+            }
+
+            int playerPosition = Positions.IndexOf(playerTeam);
+            if(playerPosition == 0)
+            {
+                return;
+            }
+
+            Team opponentAhead = Positions[playerPosition - 1];
+            double gap = GetGapToAhead(playerTeam);
+
+            const double proximityThreshold = 2.0;
+
+            if (gap <= proximityThreshold &&
+                !notifiedOpponents.Contains(opponentAhead) &&
+                PendingEvent == null)
+            {
+                PendingEvent = new RaceEvent(RaceEventType.CloseToOpponent,
+                    $"Вы приближаетесь к команде {opponentAhead.Name}! Попробуйте использовать атакующую стратегию");
+
+                notifiedOpponents.Add(opponentAhead);
+            }
         }
 
         private double GetLapTime(Team team)
@@ -510,54 +542,9 @@ namespace RacingProject.Simulation
             return CalculateTime(team.Car) * team.Strategy.TimeMultiplier;
         }
 
-        private void SetPendingEvent(RaceEvent raceEvent)
+        public void AcknowledgeEvent()
         {
-            if(raceEvent == null)
-            {
-                throw new ArgumentNullException(nameof(raceEvent));
-            }
-
-            if (IsWaitingForPlayerDecision)
-            {
-                throw new InvalidOperationException("another race event is already waiting for a decision");
-            }
-
-            PendingEvent = raceEvent;
-        }
-
-        public bool ResolvePlayerDecision(OvertakingDecision decision)
-        {
-            if (!IsWaitingForPlayerDecision)
-            {
-                throw new InvalidOperationException("There is no pending race event");
-            }
-
-            if(PendingEvent.Type != RaceEventType.OvertakingOpportunity)
-            {
-                throw new InvalidOperationException("This decision cannot be applied to the current event");
-            }
-
-            bool overtakingSuccessful = false;
-
-            switch (decision)
-            {
-                case OvertakingDecision.ATTACK:
-                    overtakingSuccessful = TryOvertake(PendingEvent.Attacker, PendingEvent.Defender);
-                    break;
-
-                case OvertakingDecision.HOLD_POSITION:
-                case OvertakingDecision.CONSERVES:
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(decision));
-            }
-
             PendingEvent = null;
-
-            ProcessOvertaking();
-
-            return overtakingSuccessful;
         }
     }
 
@@ -575,6 +562,7 @@ namespace RacingProject.Simulation
 
         public RaceResultEntry(
             Team team, RaceResult result
+
         )
         {
             Team = team;

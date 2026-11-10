@@ -13,13 +13,22 @@ public class CareerUIController : MonoBehaviour
     [SerializeField] private GameObject RacePreparationPanel;
     [SerializeField] private GameObject RacePanel;
 
-    [Header("MainMenu")]
+    [Header("Main menu")]
     [SerializeField] private Button ContinueCareerButton;
 
-    [Header("CareerHub")]
+    [Header("Upgrade car")]
+    [SerializeField] private Button UpgradeSpeedButton;
+    [SerializeField] private Button UpgradeHandlingButton;
+
+    [Header("Upgrade driver")]
+    [SerializeField] private Button UpgradeDriverSkillButton;
+    [SerializeField] private Button UpgradeDriverAggressivenessButton;
+
+    [Header("Career hub")]
     [SerializeField] private TMP_Text TeamNameText;
     [SerializeField] private TMP_Text BudgetText;
     [SerializeField] private TMP_Text CompletedRacesText;
+    [SerializeField] private TMP_Text ExpPointsText;
     [SerializeField] private TMP_Text DriverNameText;
     [SerializeField] private TMP_Text DriverStatsText;
     [SerializeField] private TMP_Text CarNameText;
@@ -39,7 +48,27 @@ public class CareerUIController : MonoBehaviour
             ContinueCareerButton.interactable = CareerSaveSystem.HasSave();
         }
 
-        if(MainMenuPanel != null)
+        if (UpgradeSpeedButton != null)
+        {
+            UpgradeSpeedButton.onClick.AddListener(BuySpeedUpgrade);
+        }
+
+        if (UpgradeHandlingButton != null)
+        {
+            UpgradeHandlingButton.onClick.AddListener(BuyHandlingUpgrade);
+        }
+
+        if (UpgradeDriverSkillButton != null)
+        {
+            UpgradeDriverSkillButton.onClick.AddListener(BuyDriverSkillUpgrade);
+        }
+
+        if (UpgradeDriverAggressivenessButton != null)
+        {
+            UpgradeDriverAggressivenessButton.onClick.AddListener(BuyDriverAggressivenessUpgrade);
+        }
+
+        if (MainMenuPanel != null)
         {
             MainMenuPanel.SetActive(true);
         }
@@ -132,15 +161,21 @@ public class CareerUIController : MonoBehaviour
             return;
         }
 
+        CarNameText.text = $"Болид: {team.Car.Name}";
+
         TeamNameText.text = team.Name;
         BudgetText.text = $"Бюджет: {team.Budget:N0}";
         CompletedRacesText.text = $"Завершено гонок: {CareerManager.CompletedRaces}";
+        ExpPointsText.text = $"Количество улучшений гонщика: {team.Driver.DevelopmentPoints}";
 
         DriverNameText.text = $"Пилот: {team.Driver.Name}";
         DriverStatsText.text = $"Навык: {team.Driver.Skill}\nАгрессивность: {team.Driver.Aggressiveness}";
 
-        CarNameText.text = $"Болид: {team.Car.Name}";
-        CarStatsText.text =$"Скорость: {team.Car.Speed}\nУправляемость: {team.Car.Handling}";
+        RefershCarUpgrade();
+
+        UpgradeDriverSkillButton.interactable = team.Driver.CanUpgradeSkill;
+
+        UpgradeDriverAggressivenessButton.interactable = team.Driver.CanUpgradeAggressiveness;
     }
     
     public void Exit()
@@ -152,5 +187,101 @@ public class CareerUIController : MonoBehaviour
     public void RacePreparation()
     {
         racePreparationController.ShowRacePreparation();
+    }
+
+    private void RefershCarUpgrade()
+    {
+        var team = CareerManager.PlayerTeam;
+        var car = team.Car;
+
+        CarStatsText.text = $"Скорость: {car.Speed}, уровень: {car.SpeedLevel}/3\nУправляемость: {car.Handling}, уровень: {car.HandlingLevel}/3";
+
+        bool canUpgradeSpeed = car.SpeedLevel < 3 &&
+                           team.Budget >= team.NextSpeedUpgradeCost &&
+                           car.Speed + team.NextSpeedUpgradeAmount <= 100;
+
+        bool canUpgradeHandling = car.HandlingLevel < 3 &&
+                                  team.Budget >= team.NextHandlingUpgradeCost &&
+                                  car.Handling + team.NextHandlingUpgradeAmount <= 100;
+        UpgradeSpeedButton.interactable = canUpgradeSpeed;
+        UpgradeHandlingButton.interactable = canUpgradeHandling;
+    }
+
+    private void BuySpeedUpgrade()
+    {
+        var team = CareerManager.PlayerTeam;
+
+        if (!team.BuySpeedUpgrade())
+        {
+            Debug.Log("Не удалось купить улучшение скорости.");
+            RefreshCareerHub();
+            return;
+        }
+
+        RefreshCareerHub();
+
+        if (!CareerManager.SaveCareer(out string error))
+        {
+            Debug.LogError($"Улучшение куплено, но сохранение не удалось: {error}");
+        }
+    }
+
+    private void BuyHandlingUpgrade()
+    {
+        var team = CareerManager.PlayerTeam;
+
+        if (!team.BuyHandlingUpgrade())
+        {
+            Debug.Log("Не удалось купить улучшение управляемости.");
+            RefreshCareerHub();
+            return;
+        }
+
+        RefreshCareerHub();
+
+        if (!CareerManager.SaveCareer(out string error))
+        {
+            Debug.LogError($"Улучшение куплено, но сохранение не удалось: {error}");
+        }
+    }
+
+    private void BuyDriverSkillUpgrade()
+    {
+        var team = CareerManager.PlayerTeam;
+
+        if (!team.Driver.CanUpgradeSkill)
+        {
+            Debug.Log("Не удалось купить улучшение навыка.");
+            RefreshCareerHub();
+            return;
+        }
+        team.Driver.UpgradeSkill();
+
+        RefreshCareerHub();
+
+        if (!CareerManager.SaveCareer(out string error))
+        {
+            Debug.LogError($"Улучшение куплено, но сохранение не удалось: {error}");
+        }
+    }
+
+    private void BuyDriverAggressivenessUpgrade()
+    {
+        var team = CareerManager.PlayerTeam;
+
+        if (!team.Driver.CanUpgradeAggressiveness)
+        {
+            Debug.Log("Не удалось купить улучшение навыка.");
+            RefreshCareerHub();
+            return;
+        }
+        team.Driver.UpgradeAggressiveness();
+
+        RefreshCareerHub();
+
+        if (!CareerManager.SaveCareer(out string error))
+        {
+            Debug.LogError($"Улучшение куплено, но сохранение не удалось: {error}");
+        }
     }
 }

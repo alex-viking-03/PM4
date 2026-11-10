@@ -14,7 +14,6 @@ namespace RacingProject.SaveSystem
         public DriverSaveData Driver = new();
 
         public string StrategyName;
-        public string DefenceName;
 
         public bool IsPlayerControlled;
     }

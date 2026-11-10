@@ -73,7 +73,7 @@ namespace RacingProject.Domain
             }
 
             --DevelopmentPoints;
-            Skill++;
+            Skill += 5;
         }
 
         public void UpgradeAggressiveness()
@@ -89,7 +89,7 @@ namespace RacingProject.Domain
             }
 
             --DevelopmentPoints;
-            Aggressiveness++;
+            Aggressiveness += 5;
         }
 
         internal void RestoreProgress(

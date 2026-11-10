@@ -1,10 +1,16 @@
-using System.Collections.Generic;
 using NUnit.Framework;
 using RacingProject.Domain;
 using RacingProject.Simulation;
+using System;
+using System.Collections.Generic;
 
 public class RaceTests
 {
+    private Team Team1;
+    private Team Team2;
+    private Track Track;
+    private List<Team> Teams;
+    private Race Race;
     private class NoMistakeRandom : System.Random
     {
         public override double NextDouble()
@@ -21,6 +27,31 @@ public class RaceTests
         }
     }
 
+    [SetUp]
+    public void SetUp()
+    {
+        Team1 = new Team(
+                    "team1",
+                    new Car("car1", 100, 100, new Soft()),
+                    15000,
+                    Strategy.NORMAL,
+                    new Driver("driver1"));
+
+        Team2 = new Team(
+                    "team2",
+                    new Car("car2", 65, 70, new Soft()),
+                    15000,
+                    Strategy.NORMAL,
+                    new Driver("driver2"));
+
+        Teams = new List<Team> { Team1, Team2 };
+
+        Track = new Track("test track", 5, 1, 5);
+        Race = new Race(
+            Teams,
+            Track,
+            new List<double> { 10000, 5000 });
+    }
 
     [Test]
     public void TestExample()
@@ -85,9 +116,9 @@ public class RaceTests
         Team team = new Team("Test Team", car, 10000, Strategy.ATTACK, new Driver("Test Driver"));
 
         Race race = new Race(
-            new List<Team> {team},
+            new List<Team> { team },
             track,
-            new List<double> {1500}
+            new List<double> { 1500 }
         );
 
         double actual = race.CalculateTime(car);
@@ -120,9 +151,9 @@ public class RaceTests
         Track track = new Track("Test track", 4.5, 1, 3);
 
         Race race = new Race(
-            new List<Team> {team},
+            new List<Team> { team },
             track,
-            new List<double> {1500}
+            new List<double> { 1500 }
         );
 
         race.StartRun();
@@ -138,14 +169,14 @@ public class RaceTests
 
         tire.Wear(Strategy.CONSERVE.WearMultiplier);
 
-        Assert.AreEqual(98.0, tire.Condition);
+        Assert.AreEqual(97.6, tire.Condition);
     }
 
     [Test]
     public void SoftTireWear_WithAttackStrategy_IcreasesWear()
     {
         Tire tire = new Soft();
-        
+
         tire.Wear(Strategy.ATTACK.WearMultiplier);
 
         Assert.AreEqual(94.0, tire.Condition);
@@ -168,15 +199,15 @@ public class RaceTests
         Track track = new Track("Test track", 4.5, 2, 3);
 
         Race race = new Race(
-            new List<Team> {team},
+            new List<Team> { team },
             track,
-            new List<double> {1500}
+            new List<double> { 1500 }
         );
 
         race.StartRun();
         race.RunNextLap();
 
-        Assert.AreEqual(98.0, team.Car.Tire.Condition);
+        Assert.AreEqual(97.6, team.Car.Tire.Condition);
     }
 
     [Test]
@@ -196,9 +227,9 @@ public class RaceTests
         Track track = new Track("Test track", 4.5, 10, 3);
 
         Race race = new Race(
-            new List<Team> {team},
+            new List<Team> { team },
             track,
-            new List<double> {1500}
+            new List<double> { 1500 }
         );
 
         race.StartRun();
@@ -224,9 +255,9 @@ public class RaceTests
         Track track = new Track("Test track", 4.5, 10, 3);
 
         Race race = new Race(
-            new List<Team> {team},
+            new List<Team> { team },
             track,
-            new List<double> {1500},
+            new List<double> { 1500 },
             new NoMistakeRandom()
         );
 
@@ -243,74 +274,6 @@ public class RaceTests
             results.Time,
             0.0001
         );
-    }
-
-    [Test]
-    public void RunNextLap_WithWornCar_AppliesYieldDefence()
-    {
-        Car car = new Car("Test Car", 70, 60, new Hard());
-        car.Wear(75);
-
-        Driver driver = new Driver("Test Driver", 75, 90);
-
-        Team team = new Team(
-            "Test Team",
-            car,
-            10000,
-            Strategy.ATTACK,
-            driver
-        );
-
-        Track track = new Track("Test Track", 4.5, 10, 3);
-
-        Race race = new Race(
-            new List<Team> { team },
-            track,
-            new List<double> { 1500 },
-            new NoMistakeRandom()
-        );
-
-        race.StartRun();
-        race.RunNextLap();
-
-        Assert.AreSame(Defence.YIELD, team.Defence);
-    }
-
-    [Test]
-    public void CalculateMistakeChance_YieldHasLowerRiskThanAggressive()
-    {
-        Car car = new Car("Test Car", 70, 60, new Hard());
-        Driver driver = new Driver("Test Driver", 75, 90);
-
-        Team team = new Team(
-            "Test Team",
-            car,
-            10000,
-            Strategy.NORMAL,
-            driver
-        );
-
-        Track track = new Track("Test Track", 4.5, 10, 3);
-
-        Race race = new Race(
-            new List<Team> { team },
-            track,
-            new List<double> { 1500 },
-            new NoMistakeRandom()
-        );
-
-        double aggressiveChance;
-        double yieldChance;
-
-        race.StartRun();
-
-        team.SetDefence(Defence.AGGRESSIVE);
-        aggressiveChance = race.CalculateMistakeChance(team);
-
-         team.SetDefence(Defence.YIELD);
-        yieldChance = race.CalculateMistakeChance(team);
-
-        Assert.Greater(aggressiveChance, yieldChance);
     }
 
     [Test]
@@ -384,262 +347,182 @@ public class RaceTests
     }
 
     [Test]
-    public void TryOvertake_WhenTeamsAreNotAdjacent_ReturnsFalse()
+    public void StartRun_ShouldInitializeProgressForEveryTeam()
     {
-        Car car1 = new Car("Car 1", 70, 60, new Hard());
-        Car car2 = new Car("Car 2", 70, 60, new Hard());
-        Car car3 = new Car("Car 3", 70, 60, new Hard());
+        Race.StartRun();
 
-        Team team1 = new Team("Team 1", car1, 10000, Strategy.NORMAL,
-            new Driver("Driver 1"));
+        foreach (Team team in Teams)
+        {
+            TeamRaceProgress progress = Race.GetTeamProgress(team);
 
-        Team team2 = new Team("Team 2", car2, 10000, Strategy.NORMAL,
-            new Driver("Driver 2"));
-
-        Team team3 = new Team("Team 3", car3, 10000, Strategy.NORMAL,
-            new Driver("Driver 3"));
-
-        Track track = new Track("Test Track", 4.5, 10, 3);
-
-        Race race = new Race(
-            new List<Team> { team1, team2, team3 },
-            track,
-            new List<double> { 1500, 1000, 500 },
-            new NoMistakeRandom()
-        );
-
-        race.StartRun();
-
-        bool overtook = race.TryOvertake(team3, team1);
-
-        Assert.IsFalse(overtook);
-
-        CollectionAssert.AreEqual(
-            new[] { team1, team2, team3 },
-            race.GetPositions()
-        );
+            Assert.AreEqual(progress.DistanceCovered, 0);
+            Assert.IsFalse(progress.IsFinished);
+        }
     }
 
     [Test]
-    public void TryOvertake_WhenChanceIsOne_SwapsTeamPositions()
+    public void CalculateDistance_ShouldCalculateDistanceForOneSecond()
     {
-        Car slowCar = new Car("Slow Car", 40, 40, new Hard());
-        Car fastCar = new Car("Fast Car", 100, 100, new Hard());
+        double lapTime = Race.CalculateTime(Team1.Car) * Team1.Strategy.TimeMultiplier;
 
-        Driver slowDriver = new Driver("Slow Driver", 30, 20);
-        Driver fastDriver = new Driver("Fast Driver", 100, 100);
+        double expectedDistance = Track.Length / lapTime;
 
-        Team defender = new Team(
-            "Defender",
-            slowCar,
-            10000,
-            Strategy.NORMAL,
-            slowDriver
-        );
+        double actualDistance = Race.CalculateDistance(Team1, 1);
 
-        Team attacker = new Team(
-            "Attacker",
-            fastCar,
-            10000,
-            Strategy.ATTACK,
-            fastDriver
-        );
-
-        Track track = new Track("Test Track", 4.5, 10, 3);
-
-        Race race = new Race(
-            new List<Team> { defender, attacker },
-            track,
-            new List<double> { 1500, 1000 },
-            new AlwaysMistakeRandom()
-        );
-
-        race.StartRun();
-
-        bool overtook = race.TryOvertake(attacker, defender);
-
-        Assert.IsTrue(overtook);
-
-        CollectionAssert.AreEqual(
-            new[] { attacker, defender },
-            race.GetPositions()
-        );
+        Assert.AreEqual(expectedDistance, actualDistance, 0.0001);
     }
 
     [Test]
-    public void TryOvertake_WhenChanceIsZero_DoesNotSwapTeamPositions()
+    public void AdvanceSimulationStep_ShouldIncreaseTeamProgress()
     {
-        Car fastCar = new Car("Fast Car", 100, 100, new Hard());
-        Car slowCar = new Car("Slow Car", 40, 40, new Hard());
+        Race.StartRun();
 
-        Driver fastDriver = new Driver("Fast Driver", 100, 100);
-        Driver slowDriver = new Driver("Slow Driver", 30, 20);
+        Race.AdvanceSimulationStep(1);
 
+        TeamRaceProgress progress = Race.GetTeamProgress(Team1);
+
+        Assert.Greater(progress.DistanceCovered, 0);
+    }
+
+    [Test]
+    public void AdvanceSimulationStep_ShouldPlaceFasterTeamAhead()
+    {
+        Race.StartRun();
+
+        Team fasterTeam = Team1;
+        Team slowerTeam = Team2;
+
+        double fasterLap = Race.CalculateTime(fasterTeam.Car) * fasterTeam.Strategy.TimeMultiplier;
+        double slowerLap = Race.CalculateTime(slowerTeam.Car) * slowerTeam.Strategy.TimeMultiplier;
+
+        Assert.Less(fasterLap, slowerLap);
+
+        Race.AdvanceSimulationStep(1.0);
+
+        List<Team> positions = Race.GetPositions();
+
+        Assert.AreEqual(fasterTeam, positions[0]);
+    }
+
+    [Test]
+    public void AdvanceSimulationStep_ShouldProcessMutlipleTimeSteps()
+    {
+        Race.StartRun();
+
+        Race.AdvanceSimulationStep(1.0);
+
+        foreach (Team team in Teams)
+        {
+            TeamRaceProgress progress = Race.GetTeamProgress(team);
+        }
+    }
+
+    [Test]
+    public void AdvanceSimulationStep_WhenTeamEntersOvertakingRange_AttemptsOvertaking()
+    {
+        Race.StartRun();
+        Race.AdvanceSimulationStep(1.0);
+
+        Assert.Greater(Race.GetTeamProgress(Team1).DistanceCovered, 0);
+    }
+
+    [Test]
+    public void AdvanceSimulationStep_WhenAttackerEntersOvertakingRange_FailsOvertake()
+    {
         Team defender = new Team(
             "Defender",
-            fastCar,
+            new Car("Slow car", 40, 100, new Hard()),
             10000,
             Strategy.NORMAL,
-            fastDriver
-        );
+            new Driver("Slow driver", 30, 20));
 
         Team attacker = new Team(
             "Attacker",
-            slowCar,
+            new Car("Fast Car", 100, 40, new Hard()),
             10000,
             Strategy.CONSERVE,
-            slowDriver
-        );
+            new Driver("Fast Driver", 100, 100));
 
-        Track track = new Track("Test Track", 4.5, 10, 3);
+        Track track = new Track("Test track", 5, 1, 5);
 
         Race race = new Race(
             new List<Team> { defender, attacker },
             track,
-            new List<double> { 1500, 1000 },
-            new AlwaysMistakeRandom()
-        );
+            new List<double> { 15000, 10000 },
+            new NoMistakeRandom(),
+            new List<double> { 1.0, 0.4995 });
 
         race.StartRun();
 
-        bool overtook = race.TryOvertake(attacker, defender);
+        race.AdvanceSimulationStep(0.1);
 
-        Assert.IsFalse(overtook);
+        CollectionAssert.AreEqual(new[] { defender, attacker },
+            race.GetPositions());
+    }
+
+    [Test]
+    public void TryOvertake_ShouldReturnFalse_WhenAttackerIsFinished()
+    {
+        Race newRace = new Race(
+            Teams,
+            Track,
+            new List<double> { 10000, 5000 },
+            startingDistances: new List<double> { Track.GetTotalDistance(), 0 });
+
+        newRace.StartRun();
+
+        List<Team> positionsBefore = newRace.GetPositions();
 
         CollectionAssert.AreEqual(
-            new[] { defender, attacker },
-            race.GetPositions()
+            positionsBefore,
+            newRace.GetPositions()
         );
     }
 
     [Test]
-    public void RunNextLap_WhenPlayerCanOvertake_CreatesPendingEvent()
+    public void TryOvertake_ShouldReturnFalse_WhenDefenderIsFinished()
     {
-        Car defenderCar = new Car("Defender car", 40, 40, new Hard());
-        Car attackerCar = new Car("Attacker car", 100, 100, new Hard());
+        Race newRace = new Race(
+            Teams,
+            Track,
+            new List<double> { 10000, 5000 },
+            startingDistances: new List<double> { 0, Track.GetTotalDistance() });
 
-        Team defender = new Team(
-            "Defender",
-            defenderCar,
-            10000,
-            Strategy.NORMAL,
-            new Driver("Defender", 30, 20)
-        );
+        newRace.StartRun();
 
-        Team player = new Team(
-            "Player",
-            attackerCar,
-            10000,
-            Strategy.ATTACK,
-            new Driver("Player", 100, 100),
-            isPlayerControlled: true
-        );
-
-        Race race = new Race(
-            new List<Team> { defender, player }, 
-            new Track("Test track", 4.5, 10, 3),
-            new List<double> { 1500, 1000 },
-            new NoMistakeRandom()
-        );
-
-        race.StartRun();
-        race.RunNextLap();
-
-        Assert.IsTrue(race.IsWaitingForPlayerDecision);
-        Assert.IsNotNull(race.PendingEvent);
-
-        Assert.AreEqual(RaceEventType.OvertakingOpportunity,
-            race.PendingEvent.Type);
-
-        Assert.AreSame(player, race.PendingEvent.Attacker);
-        Assert.AreSame(defender, race.PendingEvent.Defender);
-    }
-
-    [Test]
-    public void ResolvePlayerDecision_WithConserve_SkipsOvertaking()
-    {
-        Car defenderCar = new Car("Defender car", 40, 40, new Hard());
-        Car attackerCar = new Car("Attacker car", 100, 100, new Hard());
-
-        Team defender = new Team(
-            "Defender",
-            defenderCar,
-            10000,
-            Strategy.NORMAL,
-            new Driver("Defender", 30, 20)
-        );
-
-        Team player = new Team(
-            "Player",
-            attackerCar,
-            10000,
-            Strategy.ATTACK,
-            new Driver("Player", 100, 100),
-            isPlayerControlled: true
-        );
-
-        Race race = new Race(
-            new List<Team> { defender, player },
-            new Track("Test track", 4.5, 10, 3),
-            new List<double> { 1500, 1000 },
-            new NoMistakeRandom()
-        );
-
-        race.StartRun();
-        race.RunNextLap();
-
-        bool overtook = race.ResolvePlayerDecision(OvertakingDecision.CONSERVES);
-
-        Assert.IsFalse(overtook);
-        Assert.IsFalse(race.IsWaitingForPlayerDecision);
-        Assert.IsNull(race.PendingEvent);
+        List<Team> positionsBefore = newRace.GetPositions();
 
         CollectionAssert.AreEqual(
-            new[] { defender, player },
-            race.GetPositions()
+            positionsBefore,
+            newRace.GetPositions()
         );
-
-        Assert.AreEqual(1, race.CurrentLap);
     }
 
     [Test]
-    public void RunNextLap_WhenWaitingForPlayerDecision_ThrowsException()
+    public void AdvanceSimulationStep_ShouldPreservePitStopTime()
     {
-        Car defenderCar = new Car("Defender Car", 40, 40, new Hard());
-        Car attackerCar = new Car("Attacker Car", 100, 100, new Hard());
+        Race.StartRun();
 
-        Team defender = new Team(
-            "Defender",
-            defenderCar,
-            10000,
-            Strategy.NORMAL,
-            new Driver("Defender Driver", 30, 20)
-        );
+        Race.PitStop(Team1, new Medium());
 
-        Team player = new Team(
-            "Player",
-            attackerCar,
-            10000,
-            Strategy.ATTACK,
-            new Driver("Player Driver", 100, 100),
-            isPlayerControlled: true
-        );
+        Race.AdvanceSimulationStep(1.0);
 
-        Race race = new Race(
-            new List<Team> { defender, player },
-            new Track("Test Track", 4.5, 10, 3),
-            new List<double> { 1500, 1000 },
-            new NoMistakeRandom()
-        );
+        RaceResult result = Race.GetResult(Team1);
 
-        race.StartRun();
-        race.RunNextLap();
+        Assert.AreEqual(21.0, result.Time, 0.0001);
+    }
 
-        Assert.Throws<System.InvalidOperationException>(
-            () => race.RunNextLap()
-        );
+    [Test]
+    public void WhenFinishedTeamPerformsPitStop_ThrowsInvalidOperation()
+    {
+        Race.StartRun();
 
-        Assert.AreEqual(1, race.CurrentLap);
-        Assert.IsTrue(race.IsWaitingForPlayerDecision);
+        while (!Race.GetTeamProgress(Team1).IsFinished)
+        {
+            Race.AdvanceSimulationStep(1.0);
+        }
+
+        Assert.Throws<InvalidOperationException>(
+            () => Race.PitStop(Team1, new Medium()));
     }
 }

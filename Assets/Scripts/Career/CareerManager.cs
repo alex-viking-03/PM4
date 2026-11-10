@@ -120,7 +120,6 @@ namespace RacingProject.Career
                 15000,
                 Strategy.NORMAL,
                 driver,
-                Defence.NORMAL,
                 isPlayerControlled : true
             );
         }

@@ -5,32 +5,6 @@ namespace RacingProject.Simulation
 {
     public class RaceAI
     {
-        public Defence ChooseDefence(Team team)
-        {
-            if (team == null)
-            {
-                throw new ArgumentNullException(nameof(team));
-            }
-
-            double tireCondition = team.Car.Tire.Condition;
-            double carCondition = team.Car.Condition;
-            int aggressiveness = team.Driver.Aggressiveness;
-
-            if (tireCondition < 25 || carCondition < 30)
-            {
-                return Defence.YIELD;
-            }
-
-            if (aggressiveness >= 70 &&
-                tireCondition >= 60 &&
-                carCondition >= 60)
-            {
-                return Defence.AGGRESSIVE;
-            }
-
-            return Defence.NORMAL;
-        }
-
         public Strategy ChooseStrategy(Team team)
         {
             if (team == null)

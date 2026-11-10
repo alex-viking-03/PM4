@@ -3,6 +3,7 @@ using RacingProject.Domain;
 using RacingProject.Simulation;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,6 +12,8 @@ public class RaceUIController : MonoBehaviour
     [Header("Panels")]
     [SerializeField] private GameObject RacePanel;
     [SerializeField] private GameObject RaceResultsPanel;
+    [SerializeField] private GameObject StrategyButtonsPanel;
+    [SerializeField] private GameObject PitStopButtonsPanel;
     [SerializeField] private CareerUIController careerUIController;
 
     [Header("Race information")]
@@ -18,6 +21,7 @@ public class RaceUIController : MonoBehaviour
     [SerializeField] private TMP_Text LapText;
     [SerializeField] private TMP_Text WeatherText;
     [SerializeField] private TMP_Text RaceEventText;
+    [SerializeField] private Button OKButton;
 
     [Header("Driver information")]
     [SerializeField] private TMP_Text DriverText;
@@ -50,7 +54,17 @@ public class RaceUIController : MonoBehaviour
     [SerializeField] private TMP_Text ExpReceivedText;
     [SerializeField] private Button BackToCareerButton;
 
+    [Header("Strategy")]
+    [SerializeField] private Button AttackButton;
+    [SerializeField] private Button HoldPositionButton;
+    [SerializeField] private Button ConserveButton;
 
+    [Header("Pit stop")]
+    [SerializeField] private Button SoftTiresButton;
+    [SerializeField] private Button MediumTiresButton;
+    [SerializeField] private Button HardTiresButton;
+
+    private Tire selectedPitStopTire;
     private CareerManager careerManager;
 
     private void Awake()
@@ -58,10 +72,21 @@ public class RaceUIController : MonoBehaviour
         NextLapButton.onClick.AddListener(RunNextLap);
         FinishRaceButton.onClick.AddListener(FinishRace);
 
+        AttackButton.onClick.AddListener(AttackDecision);
+        HoldPositionButton.onClick.AddListener(HoldPositionDecision);
+        ConserveButton.onClick.AddListener(ConserveDecision);
+
+        SoftTiresButton.onClick.AddListener(PitStopSoft);
+        MediumTiresButton.onClick.AddListener(PitStopMedium);
+        HardTiresButton.onClick.AddListener(PitStopHard);
+
         FinishRaceButton.interactable = false;
 
         BackToCareerButton.onClick.AddListener(BackToCareer);
         RaceResultsPanel.SetActive(false);
+
+        OKButton.onClick.AddListener(AcknowledgeRaceEvent);
+
     }
 
     public void Initialize(CareerManager manager)
@@ -89,9 +114,11 @@ public class RaceUIController : MonoBehaviour
 
     private void RunNextLap()
     {
+        Debug.Log("BEFORE LAP: " + string.Join(", ", careerManager.CurrentRace.GetPositions().ConvertAll(team => team.Name)));
         try
         {
             careerManager.RunNextLap();
+            Debug.Log("AFTER LAP: " + string.Join(", ", careerManager.CurrentRace.GetPositions().ConvertAll(team => team.Name)));
 
             UpdateRaceUI();
 
@@ -125,14 +152,15 @@ public class RaceUIController : MonoBehaviour
         Speed.text = $"Скорость болида: {careerManager.PlayerTeam.Car.Speed.ToString()}";
         Handling.text = $"Управляемость болида: {careerManager.PlayerTeam.Car.Handling.ToString()}";
 
-        if(careerManager.CurrentRace.PendingEvent != null)
+        RaceEvent pendingEvent = careerManager.CurrentRace.PendingEvent;
+        bool hasPendingEvent = pendingEvent != null;
+
+        if(hasPendingEvent)
         {
-            RaceEventText.text = careerManager.CurrentRace.PendingEvent.Description;
+            RaceEventText.text = pendingEvent.Description;
         }
-        else
-        {
-            RaceEventText.text = "Гонка в процессе... Событий пока не происходило";
-        }
+
+        NextLapButton.interactable = !hasPendingEvent;
 
         List<Team> positions = race.GetPositions();
 
@@ -153,9 +181,10 @@ public class RaceUIController : MonoBehaviour
             }
 
             Team team = positions[i];
-            TimeSpan elapsedTime = TimeSpan.FromSeconds(race.GetResult(team).Time);
+            double time = race.GetResult(team).Time;
 
-            positionsText[i].text = $"{i + 1}. {team.Name} - {(int)elapsedTime.TotalMinutes:D2}:{elapsedTime.Seconds:D2}";
+            positionsText[i].text =
+                $"{i + 1}. {team.Name} | {FormatTime(time)}";
         }
     }
 
@@ -172,6 +201,83 @@ public class RaceUIController : MonoBehaviour
         catch (System.Exception e)
         {
             Debug.LogError($"Could not finish race: {e.Message}");
+        }
+    }
+
+    private void AttackDecision()
+    {
+        ResolveOvertaking(OvertakingDecision.ATTACK);
+    }
+
+    private void HoldPositionDecision()
+    {
+        ResolveOvertaking(OvertakingDecision.HOLD_POSITION);
+    }
+
+    private void ConserveDecision()
+    {
+        ResolveOvertaking(OvertakingDecision.CONSERVES);
+    }
+
+    private void ResolveOvertaking(OvertakingDecision decision)
+    {
+        try
+        {
+            Team playerTeam = careerManager.CurrentRace.GetPositions().FirstOrDefault(team => team.IsPlayerControlled);
+
+            switch (decision)
+            {
+                case OvertakingDecision.ATTACK:
+                    playerTeam.SetStrategy(Strategy.ATTACK);
+                    RaceEventText.text = "Стратегия изменена на Атаку. Теперь ваш гонщик ведет машину агрессивнее, а шины изнашиваются быстрее";
+                    break;
+
+                case OvertakingDecision.HOLD_POSITION:
+                    playerTeam.SetStrategy(Strategy.NORMAL);
+                    RaceEventText.text = "Стратегия изменена на Баланс. Теперь ваш гонщик ведет машину сбалансированно, а шины изнашиваются как при обычной езде";
+                    break;
+
+                case OvertakingDecision.CONSERVES:
+                    playerTeam.SetStrategy(Strategy.CONSERVE);
+                    RaceEventText.text = "Стратегия изменена на Экономию. Теперь ваш гонщик ведет машину спокойнее, а шины изнашиваются медленее";
+                    break;
+            }
+
+            UpdateRaceUI();
+        }
+        catch(Exception exxception)
+        {
+            Debug.LogError("Could not resovle player decision: " +  exxception.Message);
+        }
+    }
+
+    private void PitStopSoft()
+    {
+        PitStop(new Soft());
+    }
+
+    private void PitStopMedium()
+    {
+        PitStop(new Medium());
+    }
+
+    private void PitStopHard()
+    {
+        PitStop(new Hard());
+    }
+
+    private void PitStop(Tire tire)
+    {
+        try
+        {
+            careerManager.CurrentRace.PitStop(careerManager.PlayerTeam, tire);
+            RaceEventText.text = "Пит стоп удался! Вам прибавлено 20 сек";
+
+            UpdateRaceUI();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError($"Cannot use defence decision: {exception.Message}");
         }
     }
 
@@ -242,5 +348,11 @@ public class RaceUIController : MonoBehaviour
         }
 
         return "Неизвестно";
+    }
+
+    private void AcknowledgeRaceEvent()
+    {
+        careerManager.CurrentRace.AcknowledgeEvent();
+        NextLapButton.interactable = true;
     }
 }

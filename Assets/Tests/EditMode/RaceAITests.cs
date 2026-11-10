@@ -12,8 +12,7 @@ public class RaceAITests
             new Car("Weared tires", 9, 7, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Weared tires", 65, 75),
-            Defence.AGGRESSIVE
+            new Driver("Weared tires", 65, 75)
         );
 
         team.Car.Tire.Wear(70);
@@ -31,8 +30,7 @@ public class RaceAITests
             new Car("Weared car", 9, 7, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Weared car", 65, 75),
-            Defence.AGGRESSIVE
+            new Driver("Weared car", 65, 75)
         );
 
         team.Car.Wear(75);
@@ -50,8 +48,7 @@ public class RaceAITests
             new Car("Aggressive driver car", 9, 7, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Aggressive driver", 75, 90),
-            Defence.AGGRESSIVE
+            new Driver("Aggressive driver", 75, 90)
         );
 
         RaceAI raceAI = new RaceAI();
@@ -67,8 +64,7 @@ public class RaceAITests
             new Car("Usual", 9, 7, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Usual", 65, 65),
-            Defence.AGGRESSIVE
+            new Driver("Usual", 65, 65)
         );
 
         RaceAI raceAI = new RaceAI();

@@ -13,8 +13,7 @@ public class MistakeTests
             new Car("Professional Car", 80, 90, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Professional", 100, 100),
-            Defence.NORMAL
+            new Driver("Professional", 100, 100)
         );
 
         Team unprofessionalTeam = new Team(
@@ -22,8 +21,7 @@ public class MistakeTests
             new Car("Unprofessional Car", 80, 90, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Unprofessional", 10, 100),
-            Defence.NORMAL
+            new Driver("Unprofessional", 10, 100)
         );
 
         Race race = new Race(
@@ -46,8 +44,7 @@ public class MistakeTests
             new Car("Weared tires Car", 80, 90, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Weared tires", 80, 90),
-            Defence.NORMAL
+            new Driver("Weared tires", 80, 90)
         );
 
         wearedTiresTeam.Car.Tire.Wear(2);
@@ -57,8 +54,7 @@ public class MistakeTests
             new Car("Full tires Car", 80, 90, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Full tires", 80, 90),
-            Defence.NORMAL
+            new Driver("Full tires", 80, 90)
         );
 
         Race race = new Race(
@@ -81,8 +77,7 @@ public class MistakeTests
             new Car("Attack Car", 80, 90, new Soft()),
             10000,
             Strategy.ATTACK,
-            new Driver("Attack", 80, 90),
-            Defence.NORMAL
+            new Driver("Attack", 80, 90)
         );
 
         Team normalTeam = new Team(
@@ -90,8 +85,7 @@ public class MistakeTests
             new Car("Normal Car", 80, 90, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Normal", 80, 90),
-            Defence.NORMAL
+            new Driver("Normal", 80, 90)
         );
 
         Race race = new Race(
@@ -114,8 +108,7 @@ public class MistakeTests
             new Car("Conserve Car", 80, 90, new Soft()),
             10000,
             Strategy.CONSERVE,
-            new Driver("Conserve", 80, 90),
-            Defence.NORMAL
+            new Driver("Conserve", 80, 90)
         );
 
         Team normalTeam = new Team(
@@ -123,8 +116,7 @@ public class MistakeTests
             new Car("Normal Car", 80, 90, new Soft()),
             10000,
             Strategy.NORMAL,
-            new Driver("Normal", 80, 90),
-            Defence.NORMAL
+            new Driver("Normal", 80, 90)
         );
 
         Race race = new Race(
@@ -137,38 +129,5 @@ public class MistakeTests
         double normalChance = race.CalculateMistakeChance(normalTeam);
 
         Assert.Less(conserveChance, normalChance);
-    }
-
-    [Test]
-    public void CalculateMistakeChance_AggressiveDefence_IncreasesChance()
-    {
-        Team normalTeam = new Team(
-            "Normal Team",
-            new Car("Normal Car", 80, 90, new Hard()),
-            10000,
-            Strategy.NORMAL,
-            new Driver("Normal Driver", 80, 50),
-            Defence.NORMAL
-        );
-
-        Team aggressiveTeam = new Team(
-            "Aggressive Team",
-            new Car("Aggressive Car", 80, 90, new Hard()),
-            10000,
-            Strategy.NORMAL,
-            new Driver("Aggressive Driver", 80, 50),
-            Defence.AGGRESSIVE
-        );
-
-        Race race = new Race(
-            new List<Team> { normalTeam, aggressiveTeam },
-            new Track("Test Track", 4.5, 10, 3),
-            new List<double> { 1500, 1000 }
-        );
-
-        double normalChance = race.CalculateMistakeChance(normalTeam);
-        double aggressiveChance = race.CalculateMistakeChance(aggressiveTeam);
-
-        Assert.Greater(aggressiveChance, normalChance);
     }
 }

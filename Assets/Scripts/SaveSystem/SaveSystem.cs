@@ -263,8 +263,7 @@ namespace RacingProject.SaveSystem
                    team.Car == null ||
                    team.Car.Tire == null ||
                    team.Driver == null ||
-                   team.Strategy == null ||
-                   team.Defence == null))
+                   team.Strategy == null))
                 {
                     data = null;
                     teams = null;

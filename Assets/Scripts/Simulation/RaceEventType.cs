@@ -6,8 +6,7 @@ namespace RacingProject.Simulation
 {
     public enum RaceEventType
     {
-        OvertakingOpportunity,
-        DefensiveSituation,
+        CloseToOpponent,
         TireWarning,
         CarDamageWarning
     }

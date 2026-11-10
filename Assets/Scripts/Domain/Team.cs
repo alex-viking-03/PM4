@@ -7,7 +7,6 @@ namespace RacingProject.Domain
         public double Budget {get; private set;}
         public Strategy Strategy {get; private set;}
         public Driver Driver {get; private set;}
-        public Defence Defence {get; private set;}
 
         public double NextSpeedUpgradeCost => GetSpeedUpgradeCost();
         public double NextHandlingUpgradeCost => GetHandlingUpgradeCost();
@@ -23,7 +22,6 @@ namespace RacingProject.Domain
             double budget,
             Strategy strategy = null,
             Driver driver = null,
-            Defence defence = null,
             bool isPlayerControlled = false
         )
         {
@@ -42,7 +40,6 @@ namespace RacingProject.Domain
             Budget = budget;
             Strategy = strategy ?? Strategy.NORMAL;
             Driver = driver;
-            Defence = defence ?? Defence.NORMAL;
             IsPlayerControlled = isPlayerControlled;
         }
 
@@ -115,16 +112,6 @@ namespace RacingProject.Domain
             Car.UpgradeHandling(amount);
 
             return true;
-        }
-
-        public void SetDefence(Defence defence)
-        {
-            if (defence == null)
-            {
-                throw new System.ArgumentNullException(nameof(defence));
-            }
-
-            Defence = defence;
         }
 
         public void SetStrategy(Strategy strategy)

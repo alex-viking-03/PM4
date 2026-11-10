@@ -17,8 +17,7 @@ namespace RacingProject.Domain
                 throw new ArgumentOutOfRangeException(nameof(multiplier));
             }
 
-            Condition = Math.Round(
-                Math.Max(0, Condition - WearPerLap * multiplier), 0);            
+            Condition = Math.Round(Math.Max(0, Condition - WearPerLap * multiplier), 2);            
         }
 
         internal void RestoreCondition(double condition)
@@ -31,6 +30,31 @@ namespace RacingProject.Domain
             }
 
             Condition = condition;
+        }
+
+        public void WearForDistance(
+            double distance,
+            double trackLength,
+            double multiplier = 1)
+        {
+            if (double.IsNaN(distance) || double.IsInfinity(distance) || distance < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(distance));
+            }
+
+            if (double.IsNaN(trackLength) || double.IsInfinity(trackLength) || trackLength <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(trackLength));
+            }
+
+            if (double.IsNaN(multiplier) || double.IsInfinity(multiplier) || multiplier < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(multiplier));
+            }
+
+            double distanceFraction = distance / trackLength;
+
+            Condition = Math.Round(Math.Max(0, Condition - WearPerLap * distanceFraction * multiplier), 2);
         }
     }
 }
