@@ -9,8 +9,8 @@ namespace RacingProject.Career
 {
     public class CareerManager
     {
-        public Team PlayerTeam {get; private set;}
         public List<Team> Teams {get; private set;} = new();
+        public Team PlayerTeam { get; private set; }
         public Race CurrentRace {get; private set;}
 
         public int  CompletedRaces {get; private set;}

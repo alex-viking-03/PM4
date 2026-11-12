@@ -132,6 +132,11 @@ namespace RacingProject.Simulation
             {
                 Team team = Teams[i];
 
+                if (!team.IsPlayerControlled) 
+                {
+                    team.Car.ChangeTire(new Soft());
+                }
+
                 Results.Add(team, new RaceResult());
                 Positions.Add(team);
 
@@ -260,7 +265,14 @@ namespace RacingProject.Simulation
                 double lapTime = GetLapTime(team);
 
                 AdvanceTeam(team, lapTime);
-                AttemptMistake(team);
+                bool madeMistake = AttemptMistake(team);
+
+                if(madeMistake && team.IsPlayerControlled && PendingEvent == null)
+                {
+                    PendingEvent = new RaceEvent(RaceEventType.Mistake, "Ваш пилот совершил ошибку! Потеряно время!");
+                }
+
+                CheckPlayerTireCondition(team);
             }
 
             UpdatePosition();
@@ -360,6 +372,7 @@ namespace RacingProject.Simulation
             }
 
             IsStarted = false;
+            UpgradeOpponentsTeams();
 
             return sortedResults;
         }
@@ -485,6 +498,38 @@ namespace RacingProject.Simulation
             }
 
             return progress;
+        }
+
+        private void CheckPlayerTireCondition(Team team)
+        {
+            if (!team.IsPlayerControlled)
+                return;
+
+            if (team.Car.Tire.Condition <= 45 && PendingEvent == null)
+            {
+                PendingEvent = new RaceEvent(
+                    RaceEventType.TireWarning,
+                    "Критический износ шин! Рекомендуется пит-стоп."
+                );
+            }
+        }
+
+        private void UpgradeOpponentsTeams()
+        {
+            foreach(Team team in Teams)
+            {
+                if (team.IsPlayerControlled)
+                {
+                    continue;
+                }
+                team.RepairCar();
+
+                team.BuySpeedUpgrade();
+                team.BuyHandlingUpgrade();
+
+                team.Driver.UpgradeSkill();
+                team.Driver.UpgradeAggressiveness();
+            }
         }
 
         public double GetGapToAhead(Team team)

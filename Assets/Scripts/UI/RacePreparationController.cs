@@ -15,6 +15,8 @@ public class RacePreparationController : MonoBehaviour
     [Header("Track")]
     [SerializeField] private TMP_Text TrackNameText;
     [SerializeField] private TMP_Text TrackInfoText;
+    [SerializeField] private Image TrackImage;
+    [SerializeField] private Sprite[] TrackSprites;
 
     [Header("Options")]
     [SerializeField] private TMP_Text StrategyText;
@@ -33,6 +35,10 @@ public class RacePreparationController : MonoBehaviour
     [Header("Action buttons")]
     [SerializeField] private Button StartRaceButton;
     [SerializeField] private Button BackToHubButton;
+
+    [Header("Track selection")]
+    [SerializeField] private Button PreviousTrackButton;
+    [SerializeField] private Button NextTrackButton;
 
     [Header("Controllers")]
     [SerializeField] private RaceUIController raceController;
@@ -59,7 +65,9 @@ public class RacePreparationController : MonoBehaviour
     private Strategy selectedStrategy = Strategy.NORMAL;
     private Tire selectedTires = new Medium();
 
+    private List<Track> tracks;
     private Track selectedTrack;
+    private int selectedTrackIndex;
     private List<double> prizes;
 
     private readonly Color selectedColor = new Color(0.35f, 0.75f, 0.45f);
@@ -68,18 +76,26 @@ public class RacePreparationController : MonoBehaviour
 
     private void Awake()
     {
-        selectedTrack = new Track(
-            "PM-4 GT Circles",
-            5.2,
-            10,
-            5
-        );
+
+        tracks = new List<Track>
+        {
+            new Track("PM-4 GT Circles", 5.2, 10, 5),
+            new Track("Desert Circuit", 4.6, 12, 6),
+            new Track("Mountain Ring", 6.1, 9, 8),
+            new Track("Grand Prix Circuit", 7.0, 10, 10)
+        };
+
+        selectedTrackIndex = 0;
+        selectedTrack = tracks[selectedTrackIndex];
 
         prizes = new List<double>{
             10000,
             6000,
             3000
         };
+
+        PreviousTrackButton.onClick.AddListener(PreviousTrack);
+        NextTrackButton.onClick.AddListener(NextTrack);
 
         StrategyAttackButton.onClick.AddListener(
             () => SelectStrategy(Strategy.ATTACK)
@@ -135,6 +151,32 @@ public class RacePreparationController : MonoBehaviour
         UpdateSelectionUI();
     }
 
+    private void PreviousTrack()
+    {
+        selectedTrackIndex--;
+
+        if (selectedTrackIndex < 0)
+            selectedTrackIndex = tracks.Count - 1;
+
+        SelectTrack();
+    }
+
+    private void NextTrack()
+    {
+        selectedTrackIndex++;
+
+        if (selectedTrackIndex >= tracks.Count)
+            selectedTrackIndex = 0;
+
+        SelectTrack();
+    }
+
+    private void SelectTrack()
+    {
+        selectedTrack = tracks[selectedTrackIndex];
+        UpdateTrackInfo();
+    }
+
     private void SelectStrategy(Strategy strategy)
     {
         selectedStrategy = strategy;
@@ -153,6 +195,8 @@ public class RacePreparationController : MonoBehaviour
         TrackInfoText.text = $"Длина круга: {selectedTrack.Length} км\n" +
                              $"Кругов: {selectedTrack.Laps}\n" +
                              $"Сложность: {selectedTrack.Difficulty}";
+
+        TrackImage.sprite = TrackSprites[selectedTrackIndex];
     }
 
     private void UpdateSelectionUI()

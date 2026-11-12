@@ -8,6 +8,6 @@ namespace RacingProject.Simulation
     {
         CloseToOpponent,
         TireWarning,
-        CarDamageWarning
+        Mistake
     }
 }

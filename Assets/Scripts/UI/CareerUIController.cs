@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using RacingProject.Career;
 using RacingProject.SaveSystem;
-using NUnit.Framework;
 
 public class CareerUIController : MonoBehaviour
 {

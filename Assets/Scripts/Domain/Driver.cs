@@ -60,36 +60,40 @@ namespace RacingProject.Domain
             }
         }
 
-        public void UpgradeSkill()
+        public bool UpgradeSkill()
         {
             if(DevelopmentPoints <= 0)
             {
-                throw new InvalidOperationException("Not enough development points.");
+                return false;
             }
 
             if(Skill >= 100)
             {
-                throw new InvalidOperationException("Skill is already maximum");
+                return false;
             }
 
             --DevelopmentPoints;
             Skill += 5;
+
+            return true;
         }
 
-        public void UpgradeAggressiveness()
+        public bool UpgradeAggressiveness()
         {
             if(DevelopmentPoints <= 0)
             {
-                throw new InvalidOperationException("Not enough development points.");
+                return false;
             }
 
             if(Aggressiveness >= 100)
             {
-                throw new   InvalidOperationException("Aggressiveness is already maximum");
+                return false;
             }
 
             --DevelopmentPoints;
             Aggressiveness += 5;
+
+            return true;
         }
 
         internal void RestoreProgress(

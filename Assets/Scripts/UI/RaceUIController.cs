@@ -48,7 +48,9 @@ public class RaceUIController : MonoBehaviour
 
     [Header("Results")]
     [SerializeField] private TMP_Text ResultsTitleText;
-    [SerializeField] private TMP_Text ResultsTableText;
+    [SerializeField] private TMP_Text TeamNamesText;
+    [SerializeField] private TMP_Text FinalTimeText;
+    [SerializeField] private TMP_Text PrizeText;
     [SerializeField] private TMP_Text FinalPlayerPositionText;
     [SerializeField] private TMP_Text PrizeReceivedText;
     [SerializeField] private TMP_Text ExpReceivedText;
@@ -64,7 +66,6 @@ public class RaceUIController : MonoBehaviour
     [SerializeField] private Button MediumTiresButton;
     [SerializeField] private Button HardTiresButton;
 
-    private Tire selectedPitStopTire;
     private CareerManager careerManager;
 
     private void Awake()
@@ -86,7 +87,6 @@ public class RaceUIController : MonoBehaviour
         RaceResultsPanel.SetActive(false);
 
         OKButton.onClick.AddListener(AcknowledgeRaceEvent);
-
     }
 
     public void Initialize(CareerManager manager)
@@ -109,16 +109,17 @@ public class RaceUIController : MonoBehaviour
         NextLapButton.interactable = true;
         FinishRaceButton.interactable = false;
 
+        RaceEventText.text = "";
+
         UpdateRaceUI();
     }
 
     private void RunNextLap()
     {
-        Debug.Log("BEFORE LAP: " + string.Join(", ", careerManager.CurrentRace.GetPositions().ConvertAll(team => team.Name)));
+        RaceEventText.text = "";
         try
         {
             careerManager.RunNextLap();
-            Debug.Log("AFTER LAP: " + string.Join(", ", careerManager.CurrentRace.GetPositions().ConvertAll(team => team.Name)));
 
             UpdateRaceUI();
 
@@ -126,11 +127,9 @@ public class RaceUIController : MonoBehaviour
             {
                 NextLapButton.interactable = false;
                 FinishRaceButton.interactable = true;
-
-                Debug.Log("All laps completed");
             }
         }
-        catch (System.Exception exception)
+        catch (Exception exception)
         {
             Debug.LogError($"Could not run next lap: {exception.Message}");
         }
@@ -198,7 +197,7 @@ public class RaceUIController : MonoBehaviour
 
             Debug.Log("Race finished successfully");
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
             Debug.LogError($"Could not finish race: {e.Message}");
         }
@@ -288,25 +287,21 @@ public class RaceUIController : MonoBehaviour
 
         ResultsTitleText.text = "РЕЗУЛЬТАТЫ ГОНКИ";
 
-        System.Text.StringBuilder table = new();
-
-        table.AppendLine("ПОЗИЦИИ | КОМАНДА | ВРЕМЯ | ПРИЗОВЫЕ");
-        table.AppendLine("----------------------------------------------");
-
         for (int i = 0; i < results.Count; i++)
         {
             RaceResultEntry entry = results[i];
-            table.AppendLine($"{i + 1}. {entry.Team.Name} | {FormatTime(entry.Result.Time)} | {entry.Result.Prize:N0}");
+
+            TeamNamesText.text += $"{entry.Team.Name}\n";
+            FinalTimeText.text += $"{FormatTime(entry.Result.Time)}\n";
+            PrizeText.text += $"{entry.Result.Prize}\n";
 
             if (entry.Team.IsPlayerControlled)
             {
                 FinalPlayerPositionText.text = $"ТВОЕ МЕСТО: {i + 1}";
                 PrizeReceivedText.text = $"ПОЛУЧЕНО: {entry.Result.Prize}";
-                ExpReceivedText.text = $"+{entry.Result.Experience}";
+                ExpReceivedText.text = $"Опыта получено: +{entry.Result.Experience}";
             }
         }
-
-        ResultsTableText.text = table.ToString();
     }
 
     private string FormatTime(double seconds)
