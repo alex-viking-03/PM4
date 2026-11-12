@@ -1,10 +1,11 @@
+using RacingProject.Career;
+using RacingProject.Domain;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
-using UnityEngine.UI;
-using RacingProject.Domain;
-using RacingProject.Career;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class RacePreparationController : MonoBehaviour
 {
@@ -124,6 +125,8 @@ public class RacePreparationController : MonoBehaviour
         StartRaceButton.onClick.AddListener(StartRace);
         BackToHubButton.onClick.AddListener(BackToCareerHub);
 
+        raceController.Initialize(careerManager);
+
         UpdateTrackInfo();
         UpdateSelectionUI();
     }
@@ -141,6 +144,8 @@ public class RacePreparationController : MonoBehaviour
             Debug.LogError("Career has not been initialized");
             return;
         }
+
+        Debug.Log(careerManager.PlayerTeam.Car.Tire.Condition);
 
         RacePreparationPanel.SetActive(true);
         CareerHubPanel.SetActive(false);
@@ -283,11 +288,20 @@ public class RacePreparationController : MonoBehaviour
             Team playerTeam = careerManager.PlayerTeam;
 
             playerTeam.SetStrategy(selectedStrategy);
-            playerTeam.Car.ChangeTire(selectedTires);
+
+            Tire tireToChange = SelectTire(selectedTires);
+
+            playerTeam.Car.ChangeTire(tireToChange);
+
+            Debug.Log($"Installed tire: {playerTeam.Car.Tire.Name}");
+            Debug.Log($"Installed tire ID: {playerTeam.Car.Tire.GetHashCode()}");
 
             careerManager.StartNextRace(selectedTrack, prizes);
 
-            raceController.Initialize(careerManager);
+            Debug.Log($"Race team ID: {careerManager.CurrentRace.GetPositions().First(t => t.IsPlayerControlled).GetHashCode()}");
+
+            Debug.Log($"Race car tire: {careerManager.PlayerTeam.Car.Tire.Name}");
+
             raceController.ShowRace(selectedTrack.Name);
 
             RacePreparationPanel.SetActive(false);
@@ -315,5 +329,20 @@ public class RacePreparationController : MonoBehaviour
 
         RacePreparationPanel.SetActive(false);
         CareerHubPanel.SetActive(true);
+    }
+
+    private Tire SelectTire(Tire tire)
+    {
+        switch (tire)
+        {
+            case Soft:
+                return new Soft();
+            case Medium:
+                return new Medium();
+            case Hard:
+                return new Hard();
+            default: 
+                return null;
+        }
     }
 }

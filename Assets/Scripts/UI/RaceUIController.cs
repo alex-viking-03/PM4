@@ -102,6 +102,8 @@ public class RaceUIController : MonoBehaviour
             return;
         }
 
+        Debug.Log(careerManager.PlayerTeam.Car.Tire.Condition);
+
         RacePanel.SetActive(true);
 
         TrackNameText.text = trackName;
@@ -286,6 +288,10 @@ public class RaceUIController : MonoBehaviour
         RaceResultsPanel.SetActive(true);
 
         ResultsTitleText.text = "РЕЗУЛЬТАТЫ ГОНКИ";
+
+        TeamNamesText.text = "";
+        FinalTimeText.text = "";
+        PrizeText.text = "";
 
         for (int i = 0; i < results.Count; i++)
         {
