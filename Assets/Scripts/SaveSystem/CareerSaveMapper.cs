@@ -246,18 +246,6 @@ namespace RacingProject.SaveSystem
             };
         }
 
-        private static Defence GetDefence(string name)
-        {
-            return name switch
-            {
-                "NORMAL" => Defence.NORMAL,
-                "AGGRESSIVE" => Defence.AGGRESSIVE,
-                "YIELD" => Defence.YIELD,
-                _ => throw new ArgumentException(
-                    $"Unknown defence type: {name}")
-            };
-        }
-
         public static FullCareerSaveData CreateFullCareerSaveData(
             System.Collections.Generic.List<Team> teams,
             int completedRaces

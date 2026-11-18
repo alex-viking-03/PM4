@@ -12,7 +12,6 @@ namespace RacingProject.Domain
         public int DevelopmentPoints {get; private set;}
 
         public int ExperienceToNextLevel => Level * 100;
-        public double ExperienceProgress => (double)Experience / ExperienceToNextLevel;
 
         public bool CanUpgradeSkill => DevelopmentPoints > 0 && Skill < 100;
         public bool CanUpgradeAggressiveness=> DevelopmentPoints > 0 && Aggressiveness < 100;
@@ -120,11 +119,6 @@ namespace RacingProject.Domain
             Level = level;
             Experience = experience;
             DevelopmentPoints = developmentPoints;
-        }
-
-        public void GainDevelopmentPoints(int amount)
-        {
-            DevelopmentPoints += amount;
         }
     }
 }
