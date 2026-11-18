@@ -18,7 +18,7 @@ namespace RacingProject.Simulation
         private readonly Dictionary<Team, TeamRaceProgress> TeamProgress = new();
         private readonly List<Team> Positions = new();
         private readonly RaceAI AI = new RaceAI();
-        private readonly HashSet<Team> notifiedOpponents= new();
+        private Team notifiedOpponent = null;
 
         public int CurrentLap {get; private set;}
         public bool IsStarted {get; private set;}
@@ -125,7 +125,7 @@ namespace RacingProject.Simulation
             Results.Clear();
             Positions.Clear();
             TeamProgress.Clear();
-            notifiedOpponents.Clear();
+            notifiedOpponent = null;
             PendingEvent = null;
 
             for (int i = 0; i < Teams.Count; i++)
@@ -151,25 +151,6 @@ namespace RacingProject.Simulation
 
             CurrentLap = 0;
             IsStarted = true;
-        }
-
-        public void RunLap(Team team)
-        {
-            EnsureRaceStarted();
-
-            if (team == null)
-            {
-                throw new ArgumentNullException(nameof(team));
-            }
-
-            if (!Results.ContainsKey(team))
-            {
-                throw new ArgumentException("Team doesn't participate in this race.", nameof(team));
-            }
-
-            double lapTime = GetLapTime(team);
-
-            AdvanceTeam(team, lapTime);
         }
 
         private void AdvanceTeam(Team team, double elapsedTime)
@@ -572,13 +553,13 @@ namespace RacingProject.Simulation
             const double proximityThreshold = 2.0;
 
             if (gap <= proximityThreshold &&
-                !notifiedOpponents.Contains(opponentAhead) &&
+                notifiedOpponent != opponentAhead &&
                 PendingEvent == null)
             {
                 PendingEvent = new RaceEvent(RaceEventType.CloseToOpponent,
                     $"Вы приближаетесь к команде {opponentAhead.Name}! Попробуйте использовать атакующую стратегию");
 
-                notifiedOpponents.Add(opponentAhead);
+                notifiedOpponent = opponentAhead;
             }
         }
 

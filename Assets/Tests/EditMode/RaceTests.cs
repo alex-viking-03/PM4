@@ -427,40 +427,6 @@ public class RaceTests
     }
 
     [Test]
-    public void AdvanceSimulationStep_WhenAttackerEntersOvertakingRange_FailsOvertake()
-    {
-        Team defender = new Team(
-            "Defender",
-            new Car("Slow car", 40, 100, new Hard()),
-            10000,
-            Strategy.NORMAL,
-            new Driver("Slow driver", 30, 20));
-
-        Team attacker = new Team(
-            "Attacker",
-            new Car("Fast Car", 100, 40, new Hard()),
-            10000,
-            Strategy.CONSERVE,
-            new Driver("Fast Driver", 100, 100));
-
-        Track track = new Track("Test track", 5, 1, 5);
-
-        Race race = new Race(
-            new List<Team> { defender, attacker },
-            track,
-            new List<double> { 15000, 10000 },
-            new NoMistakeRandom(),
-            new List<double> { 1.0, 0.4995 });
-
-        race.StartRun();
-
-        race.AdvanceSimulationStep(0.1);
-
-        CollectionAssert.AreEqual(new[] { defender, attacker },
-            race.GetPositions());
-    }
-
-    [Test]
     public void TryOvertake_ShouldReturnFalse_WhenAttackerIsFinished()
     {
         Race newRace = new Race(

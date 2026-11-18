@@ -328,6 +328,8 @@ public class RaceUIController : MonoBehaviour
             Debug.LogError($"Couldn't save career: {error}");
         }
 
+        Debug.Log(careerManager.PlayerTeam.Car.Condition);
+
         RaceResultsPanel.SetActive(false);
 
         careerUIController.ShowCareerHub();

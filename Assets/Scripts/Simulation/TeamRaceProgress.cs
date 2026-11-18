@@ -18,9 +18,6 @@ namespace RacingProject.Simulation
 
         public int TotalLaps { get; }
 
-        public double DistanceOnCurrentLap =>
-            DistanceCovered - CompletedLaps * TrackLength;
-
         public bool IsFinished =>
             DistanceCovered >= TotalDistance;
 
